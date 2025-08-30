@@ -1,48 +1,78 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
   ScrollView,
+  StyleSheet,
+  Switch,
   Alert,
 } from 'react-native';
-import { User, LogOut, Settings as SettingsIcon, Database, Zap, Shield, CircleHelp as HelpCircle } from 'lucide-react-native';
-import { useAuth } from '@/hooks/useAuth';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { User, Bell, Shield, Palette, Download, CircleHelp as HelpCircle, LogOut, ChevronRight, Moon, Globe, Smartphone } from 'lucide-react-native';
+import { useAuth } from '@/contexts/AuthContext';
 
-export default function SettingsScreen() {
+interface SettingItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon: any;
+  type: 'navigation' | 'toggle' | 'action';
+  value?: boolean;
+  color?: string;
+}
+
+export default function SettingsTab() {
+  const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [biometric, setBiometric] = useState(true);
   const { user, signOut } = useAuth();
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await signOut();
-            if (error) {
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const settingsSections = [
+  const settingSections = [
     {
       title: 'Account',
       items: [
         {
-          icon: <User size={20} color="#6B7280" />,
+          id: 'profile',
           title: 'Profile',
-          subtitle: user?.email || '',
-          onPress: () => Alert.alert('Coming Soon', 'Profile editing will be available soon'),
+          subtitle: 'Manage your personal information',
+          icon: User,
+          type: 'navigation' as const,
+        },
+        {
+          id: 'security',
+          title: 'Security',
+          subtitle: 'Password, biometric, and privacy settings',
+          icon: Shield,
+          type: 'navigation' as const,
+        },
+      ],
+    },
+    {
+      title: 'Preferences',
+      items: [
+        {
+          id: 'notifications',
+          title: 'Notifications',
+          subtitle: 'Manage your notification preferences',
+          icon: Bell,
+          type: 'toggle' as const,
+          value: notifications,
+        },
+        {
+          id: 'theme',
+          title: 'Dark Mode',
+          subtitle: 'Switch between light and dark themes',
+          icon: Moon,
+          type: 'toggle' as const,
+          value: darkMode,
+        },
+        {
+          id: 'language',
+          title: 'Language',
+          subtitle: 'English',
+          icon: Globe,
+          type: 'navigation' as const,
         },
       ],
     },
@@ -50,27 +80,19 @@ export default function SettingsScreen() {
       title: 'Data & Privacy',
       items: [
         {
-          icon: <Database size={20} color="#6B7280" />,
-          title: 'Data Export',
-          subtitle: 'Download your Second Brain data',
-          onPress: () => Alert.alert('Coming Soon', 'Data export will be available soon'),
+          id: 'biometric',
+          title: 'Biometric Lock',
+          subtitle: 'Use fingerprint or face ID to unlock',
+          icon: Smartphone,
+          type: 'toggle' as const,
+          value: biometric,
         },
         {
-          icon: <Shield size={20} color="#6B7280" />,
-          title: 'Privacy Settings',
-          subtitle: 'Manage your data privacy',
-          onPress: () => Alert.alert('Coming Soon', 'Privacy settings will be available soon'),
-        },
-      ],
-    },
-    {
-      title: 'AI Integration',
-      items: [
-        {
-          icon: <Zap size={20} color="#6B7280" />,
-          title: 'AI Assistant',
-          subtitle: 'Connect AI for smart insights (Coming Soon)',
-          onPress: () => Alert.alert('AI Integration', 'AI features are being prepared for future release'),
+          id: 'export',
+          title: 'Export Data',
+          subtitle: 'Download all your data',
+          icon: Download,
+          type: 'navigation' as const,
         },
       ],
     },
@@ -78,53 +100,155 @@ export default function SettingsScreen() {
       title: 'Support',
       items: [
         {
-          icon: <HelpCircle size={20} color="#6B7280" />,
+          id: 'help',
           title: 'Help & Support',
-          subtitle: 'Get help with Second Brain',
-          onPress: () => Alert.alert('Support', 'Support system will be available soon'),
+          subtitle: 'Get help and contact support',
+          icon: HelpCircle,
+          type: 'navigation' as const,
+        },
+        {
+          id: 'logout',
+          title: 'Sign Out',
+          subtitle: 'Sign out of your account',
+          icon: LogOut,
+          type: 'action' as const,
+          color: '#DC2626',
         },
       ],
     },
   ];
 
+  const handleToggle = (id: string, value: boolean) => {
+    switch (id) {
+      case 'notifications':
+        setNotifications(value);
+        break;
+      case 'theme':
+        setDarkMode(value);
+        break;
+      case 'biometric':
+        setBiometric(value);
+        break;
+    }
+  };
+
+
+  const handleAction = (id: string) => {
+    if (id === 'logout') {
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Out', style: 'destructive', onPress: signOut },
+        ]
+      );
+    }
+  };
+
+  const handleNavigation = (id: string) => {
+    switch (id) {
+      case 'profile':
+        Alert.alert('Profile', 'Profile editing coming soon!');
+        break;
+      case 'security':
+        Alert.alert('Security', 'Security settings coming soon!');
+        break;
+      case 'language':
+        Alert.alert('Language', 'Language selection coming soon!');
+        break;
+      case 'export':
+        Alert.alert('Export Data', 'Data export feature coming soon!');
+        break;
+      case 'help':
+        Alert.alert('Help & Support', 'Help center coming soon!');
+        break;
+      default:
+        console.log(`Navigate to: ${id}`);
+    }
+  };
+
+  const renderSettingItem = (item: SettingItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.settingItem}
+      onPress={() => {
+        if (item.type === 'navigation') {
+          handleNavigation(item.id);
+        } else if (item.type === 'action') {
+          handleAction(item.id);
+        }
+      }}
+    >
+      <View style={styles.settingLeft}>
+        <View style={[styles.settingIcon, item.color && { backgroundColor: `${item.color}15` }]}>
+          <item.icon 
+            size={20} 
+            color={item.color || '#3B82F6'} 
+          />
+        </View>
+        <View style={styles.settingText}>
+          <Text style={[styles.settingTitle, item.color && { color: item.color }]}>
+            {item.title}
+          </Text>
+          {item.subtitle && (
+            <Text style={styles.settingSubtitle}>{item.subtitle}</Text>
+          )}
+        </View>
+      </View>
+      <View style={styles.settingRight}>
+        {item.type === 'toggle' ? (
+          <Switch
+            value={item.value || false}
+            onValueChange={(value) => handleToggle(item.id, value)}
+            trackColor={{ false: '#f1f5f9', true: '#bfdbfe' }}
+            thumbColor={item.value ? '#3B82F6' : '#f4f3f4'}
+          />
+        ) : (
+          <ChevronRight size={20} color="#94a3b8" />
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <SettingsIcon size={28} color="#3B82F6" />
-          <Text style={styles.headerTitle}>Settings</Text>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Settings</Text>
+      </View>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* User Profile Card */}
+        <View style={styles.profileCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>JD</Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>
+              {user?.user_metadata?.full_name || 'User'}
+            </Text>
+            <Text style={styles.profileEmail}>{user?.email}</Text>
+          </View>
+          <TouchableOpacity style={styles.editButton}>
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
         </View>
 
-        {settingsSections.map((section, sectionIndex) => (
-          <View key={sectionIndex} style={styles.section}>
+        {/* Settings Sections */}
+        {settingSections.map((section, index) => (
+          <View key={index} style={styles.section}>
             <Text style={styles.sectionTitle}>{section.title}</Text>
             <View style={styles.sectionContent}>
-              {section.items.map((item, itemIndex) => (
-                <TouchableOpacity
-                  key={itemIndex}
-                  style={[
-                    styles.settingItem,
-                    itemIndex === section.items.length - 1 && styles.lastItem,
-                  ]}
-                  onPress={item.onPress}
-                >
-                  <View style={styles.settingItemLeft}>
-                    {item.icon}
-                    <View style={styles.settingItemText}>
-                      <Text style={styles.settingItemTitle}>{item.title}</Text>
-                      <Text style={styles.settingItemSubtitle}>{item.subtitle}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {section.items.map(renderSettingItem)}
             </View>
           </View>
         ))}
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <LogOut size={20} color="#EF4444" />
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        {/* App Info */}
+        <View style={styles.appInfo}>
+          <Text style={styles.appInfoText}>Second Brain v1.0.0</Text>
+          <Text style={styles.appInfoText}>© 2024 Your Digital Memory</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,88 +257,138 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: '#f8fafc',
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 24,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
-    marginLeft: 12,
+    color: '#0f172a',
   },
-  section: {
-    marginBottom: 24,
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
-  sectionTitle: {
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 20,
+    marginTop: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  editButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+  },
+  editButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginHorizontal: 24,
-    marginBottom: 8,
+    color: '#3B82F6',
+  },
+  section: {
+    marginTop: 32,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   sectionContent: {
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#f8fafc',
   },
-  lastItem: {
-    borderBottomWidth: 0,
-  },
-  settingItemLeft: {
+  settingLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  settingIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingText: {
     flex: 1,
   },
-  settingItemText: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  settingItemTitle: {
+  settingTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0f172a',
     marginBottom: 2,
   },
-  settingItemSubtitle: {
+  settingSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#64748B',
   },
-  signOutButton: {
-    flexDirection: 'row',
+  settingRight: {
+    marginLeft: 12,
+  },
+  appInfo: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginVertical: 24,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
+    paddingVertical: 32,
+    gap: 4,
   },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-    marginLeft: 8,
+  appInfoText: {
+    fontSize: 14,
+    color: '#94a3b8',
   },
 });

@@ -2,72 +2,93 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  SafeAreaView,
+  TouchableOpacity,
   ScrollView,
+  StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useAuth } from '@/hooks/useAuth';
-import { useUserStats } from '@/hooks/useUserStats';
-import { useNotes } from '@/hooks/useNotes';
-import AuthScreen from '@/components/AuthScreen';
-import BrainScoreCard from '@/components/BrainScoreCard';
-import { TrendingUp, Calendar, CircleCheck as CheckCircle2, FileText, Camera, Paperclip } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Calendar, Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle, TrendingUp, Target, FileText, Brain } from 'lucide-react-native';
+import { useTasks } from '@/hooks/useTasks';
+import { useDocuments } from '@/hooks/useDocuments';
+import { useMessages } from '@/hooks/useMessages';
 
-export default function DashboardScreen() {
-  const { user, loading: authLoading } = useAuth();
-  const { stats, loading: statsLoading } = useUserStats(user?.id);
-  const { notes, loading: notesLoading } = useNotes(user?.id);
+interface Stat {
+  label: string;
+  value: string;
+  change: string;
+  icon: any;
+  color: string;
+}
 
-  if (authLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
+export default function DashboardTab() {
+  const { tasks, loading: tasksLoading, toggleTask } = useTasks();
+  const { documents } = useDocuments();
+  const { messages } = useMessages();
 
-  if (!user) {
-    return <AuthScreen />;
-  }
+  const upcomingTasks = tasks
+    .filter(task => !task.completed)
+    .sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    })
+    .slice(0, 3);
 
-  const getActivityData = () => {
-    const today = new Date();
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      return date.toISOString().split('T')[0];
-    }).reverse();
+  const completedTasksCount = tasks.filter(task => task.completed).length;
+  const totalNotes = messages.filter(msg => !msg.is_user).length;
+  const productivityScore = tasks.length > 0 ? Math.round((completedTasksCount / tasks.length) * 100) : 0;
 
-    return last7Days.map(date => {
-      const dayNotes = notes.filter(note => 
-        note.created_at.split('T')[0] === date
-      );
-      return {
-        date,
-        count: dayNotes.length,
-        completed: dayNotes.filter(note => 
-          note.type === 'task' && note.metadata?.completed
-        ).length,
-      };
-    });
+  const stats: Stat[] = [
+    {
+      label: 'Notes Created',
+      value: totalNotes.toString(),
+      change: '+12%',
+      icon: Brain,
+      color: '#3B82F6',
+    },
+    {
+      label: 'Tasks Completed',
+      value: completedTasksCount.toString(),
+      change: '+8%',
+      icon: CheckCircle,
+      color: '#10B981',
+    },
+    {
+      label: 'Documents',
+      value: documents.length.toString(),
+      change: '+3%',
+      icon: FileText,
+      color: '#8B5CF6',
+    },
+    {
+      label: 'Productivity',
+      value: `${productivityScore}%`,
+      change: '+5%',
+      icon: TrendingUp,
+      color: '#F59E0B',
+    },
+  ];
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return '#DC2626';
+      case 'medium':
+        return '#F59E0B';
+      case 'low':
+        return '#10B981';
+      default:
+        return '#64748B';
+    }
   };
 
-  const getContentBreakdown = () => {
-    const breakdown = {
-      text: notes.filter(n => n.type === 'text').length,
-      tasks: notes.filter(n => n.type === 'task').length,
-      images: notes.filter(n => n.type === 'image').length,
-      files: notes.filter(n => n.type === 'file').length,
-    };
-    return breakdown;
+  const handleTaskToggle = async (taskId: string) => {
+    await toggleTask(taskId);
   };
 
-  const activityData = getActivityData();
-  const contentBreakdown = getContentBreakdown();
-
-  if (statsLoading || notesLoading) {
+  if (tasksLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
@@ -78,74 +99,124 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>
-            Track your Second Brain progress
-          </Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>Good morning!</Text>
+          <Text style={styles.headerTitle}>Your Second Brain</Text>
         </View>
+        <TouchableOpacity style={styles.calendarButton}>
+          <Calendar size={20} color="#3B82F6" />
+        </TouchableOpacity>
+      </View>
 
-        <BrainScoreCard stats={stats} />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Activity Overview</Text>
-          <View style={styles.activityContainer}>
-            {activityData.map((day, index) => (
-              <View key={index} style={styles.activityDay}>
-                <View style={[
-                  styles.activityBar,
-                  { height: Math.max(4, day.count * 8) }
-                ]} />
-                <Text style={styles.activityLabel}>
-                  {new Date(day.date).toLocaleDateString('en', { weekday: 'short' })}
-                </Text>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          {stats.map((stat, index) => (
+            <View key={index} style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: `${stat.color}15` }]}>
+                <stat.icon size={24} color={stat.color} />
               </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Content Breakdown</Text>
-          <View style={styles.breakdownGrid}>
-            <View style={styles.breakdownCard}>
-              <FileText size={24} color="#3B82F6" />
-              <Text style={styles.breakdownValue}>{contentBreakdown.text}</Text>
-              <Text style={styles.breakdownLabel}>Notes</Text>
-            </View>
-
-            <View style={styles.breakdownCard}>
-              <CheckCircle2 size={24} color="#10B981" />
-              <Text style={styles.breakdownValue}>{contentBreakdown.tasks}</Text>
-              <Text style={styles.breakdownLabel}>Tasks</Text>
-            </View>
-
-            <View style={styles.breakdownCard}>
-              <Camera size={24} color="#8B5CF6" />
-              <Text style={styles.breakdownValue}>{contentBreakdown.images}</Text>
-              <Text style={styles.breakdownLabel}>Images</Text>
-            </View>
-
-            <View style={styles.breakdownCard}>
-              <Paperclip size={24} color="#F59E0B" />
-              <Text style={styles.breakdownValue}>{contentBreakdown.files}</Text>
-              <Text style={styles.breakdownLabel}>Files</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
-          <View style={styles.achievementCard}>
-            <TrendingUp size={24} color="#10B981" />
-            <View style={styles.achievementContent}>
-              <Text style={styles.achievementTitle}>Knowledge Builder</Text>
-              <Text style={styles.achievementDescription}>
-                {stats?.total_notes || 0 >= 10 
-                  ? 'Completed: Added 10+ items to your Second Brain'
-                  : `Progress: ${stats?.total_notes || 0}/10 items added`
-                }
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+              <Text style={[styles.statChange, { color: stat.color }]}>
+                {stat.change}
               </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Upcoming Tasks */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAll}>View All</Text>
+            </TouchableOpacity>
+          </View>
+
+          {upcomingTasks.map((task) => (
+            <TouchableOpacity 
+              key={task.id} 
+              style={styles.taskCard}
+              onPress={() => handleTaskToggle(task.id)}
+            >
+              <View style={styles.taskLeft}>
+                <View
+                  style={[
+                    styles.priorityIndicator,
+                    { backgroundColor: getPriorityColor(task.priority) },
+                  ]}
+                />
+                <View style={styles.taskInfo}>
+                  <Text
+                    style={[
+                      styles.taskTitle,
+                      task.completed && styles.completedTask,
+                    ]}
+                  >
+                    {task.title}
+                  </Text>
+                  <View style={styles.taskMeta}>
+                    <Clock size={14} color="#64748B" />
+                    <Text style={styles.taskDue}>
+                      {task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <View style={styles.taskRight}>
+                {task.completed ? (
+                  <CheckCircle size={20} color="#10B981" />
+                ) : (
+                  <View style={styles.uncheckedCircle} />
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={[styles.actionIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Brain size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.actionLabel}>Add Thought</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={[styles.actionIcon, { backgroundColor: '#F0FDF4' }]}>
+                <Target size={24} color="#10B981" />
+              </View>
+              <Text style={styles.actionLabel}>New Task</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard}>
+              <View style={[styles.actionIcon, { backgroundColor: '#FEF7FF' }]}>
+                <FileText size={24} color="#8B5CF6" />
+              </View>
+              <Text style={styles.actionLabel}>Upload Doc</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Today's Focus */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Today's Focus</Text>
+          <View style={styles.focusCard}>
+            <View style={styles.focusHeader}>
+              <AlertCircle size={20} color="#F59E0B" />
+              <Text style={styles.focusTitle}>High Priority</Text>
+            </View>
+            <Text style={styles.focusDescription}>
+              Complete the project proposal review and prepare for tomorrow's presentation.
+            </Text>
+            <View style={styles.focusProgress}>
+              <View style={styles.progressBar}>
+                <View style={[styles.progressFill, { width: '65%' }]} />
+              </View>
+              <Text style={styles.progressText}>65% Complete</Text>
             </View>
           </View>
         </View>
@@ -155,116 +226,248 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#64748B',
     marginTop: 16,
   },
-  scrollView: {
+  container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
   },
   header: {
-    padding: 24,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  section: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  activityContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    height: 120,
-  },
-  activityDay: {
     alignItems: 'center',
-    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
-  activityBar: {
-    width: 8,
-    backgroundColor: '#3B82F6',
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  activityLabel: {
-    fontSize: 10,
-    color: '#6B7280',
+  greeting: {
+    fontSize: 16,
+    color: '#64748B',
     fontWeight: '500',
   },
-  breakdownGrid: {
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginTop: 2,
+  },
+  calendarButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    paddingTop: 16,
   },
-  breakdownCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+  statCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '47%',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  breakdownValue: {
+  statIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
-    marginTop: 8,
-    marginBottom: 4,
+    color: '#0f172a',
   },
-  breakdownLabel: {
+  statLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  statChange: {
     fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 4,
   },
-  achievementCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
+  section: {
+    marginTop: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  viewAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  taskCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  taskLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  achievementContent: {
-    flex: 1,
-    marginLeft: 16,
+  priorityIndicator: {
+    width: 4,
+    height: 32,
+    borderRadius: 2,
+    marginRight: 12,
   },
-  achievementTitle: {
+  taskInfo: {
+    flex: 1,
+  },
+  taskTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#0f172a',
     marginBottom: 4,
   },
-  achievementDescription: {
+  completedTask: {
+    textDecorationLine: 'line-through',
+    color: '#64748B',
+  },
+  taskMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  taskDue: {
     fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
+    color: '#64748B',
+  },
+  taskRight: {
+    marginLeft: 12,
+  },
+  uncheckedCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  focusCard: {
+    backgroundColor: '#ffffff',
+    padding: 20,
+    borderRadius: 12,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  focusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  focusTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#F59E0B',
+  },
+  focusDescription: {
+    fontSize: 16,
+    color: '#334155',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  focusProgress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  progressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 3,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
   },
 });

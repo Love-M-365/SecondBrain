@@ -1,43 +1,43 @@
 import { Tabs } from 'expo-router';
-import { Brain, MessageCircle, ChartBar as BarChart3, Settings } from 'lucide-react-native';
+import { Brain, FileText, ChartBar as BarChart3, Settings } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3B82F6',
-        tabBarInactiveTintColor: '#6B7280',
         tabBarStyle: {
-          backgroundColor: 'white',
+          backgroundColor: '#ffffff',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          paddingTop: 8,
-          paddingBottom: 8,
-          height: 64,
+          borderTopColor: '#f1f5f9',
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 65,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
           marginTop: 4,
         },
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#64748B',
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="brain"
         options={{
-          title: 'Brain',
+          title: 'My Brain',
           tabBarIcon: ({ size, color }) => (
             <Brain size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="chat"
+        name="documents"
         options={{
-          title: 'Chat',
+          title: 'Documents',
           tabBarIcon: ({ size, color }) => (
-            <MessageCircle size={size} color={color} />
+            <FileText size={size} color={color} />
           ),
         }}
       />
