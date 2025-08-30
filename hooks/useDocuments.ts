@@ -20,7 +20,7 @@ export function useDocuments() {
   useEffect(() => {
     if (user) {
       fetchDocuments();
-      
+
       // Subscribe to real-time updates
       const subscription = supabase
         .channel('documents')
@@ -79,14 +79,16 @@ export function useDocuments() {
     try {
       const { data, error } = await supabase
         .from('documents')
-        .insert({
-          user_id: user.id,
-          name,
-          file_type: fileType,
-          file_size: fileSize,
-          file_url: fileUrl,
-          category,
-        })
+        .insert([
+          {
+            user_id: user.id,   // 👈 important for RLS
+            name,
+            file_type: fileType,
+            file_size: fileSize,
+            file_url: fileUrl,
+            category,
+          },
+        ])
         .select()
         .single();
 

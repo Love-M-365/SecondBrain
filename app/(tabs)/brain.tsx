@@ -12,10 +12,15 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Send, Camera, Mic, Plus, LogOut } from 'lucide-react-native';
+import { Send, Camera, Mic, Plus, LogOut, Import } from 'lucide-react-native';
 import { useMessages } from '@/hooks/useMessages';
+import { useDocuments } from '@/hooks/useDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as DocumentPicker from 'expo-document-picker';
+import { supabase } from '@/lib/supabase';
+import * as FileSystem from "expo-file-system";
+
 
 export default function BrainTab() {
   const { messages, loading, sendMessage } = useMessages();
@@ -24,6 +29,10 @@ export default function BrainTab() {
   const [showCamera, setShowCamera] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const scrollViewRef = useRef<ScrollView>(null);
+  const { addDocument } = useDocuments();
+  const { user } = useAuth(); // your context
+
+
 
   const handleSendMessage = async () => {
     if (inputText.trim()) {
@@ -48,9 +57,76 @@ export default function BrainTab() {
     Alert.alert('Voice Input', 'Voice input feature coming soon!');
   };
 
-  const handleQuickAdd = () => {
-    Alert.alert('Quick Add', 'Quick add feature coming soon!');
-  };
+const handleQuickAdd = async () => {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "*/*",
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      console.log("Document selection cancelled or failed.");
+      return;
+    }
+
+    const file = result.assets[0];
+    console.log("Picked file:", file);
+
+    if (!user?.id) {
+      Alert.alert("Auth Error", "You must be logged in to upload files.");
+      return;
+    }
+
+    // Read file as base64 and convert to Uint8Array
+    const base64Data = await FileSystem.readAsStringAsync(file.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const fileBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
+
+    // Define unique path in your bucket
+   const filePath = `${user.id}/${Date.now()}_${file.name}`;
+
+const { error: uploadError } = await supabase.storage
+  .from("documents-bucket")
+  .upload(filePath, fileBytes, {
+    contentType: file.mimeType || "application/octet-stream",
+    upsert: false,
+  });
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      Alert.alert("Upload Error", uploadError.message);
+      return;
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from("documents-bucket")
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Save metadata into documents table
+    const savedDoc = await addDocument(
+      file.name,
+      file.mimeType || "unknown",
+      file.size || 0,
+      publicUrl,
+      "General"
+    );
+
+    if (!savedDoc) {
+      Alert.alert("Error", "File uploaded but metadata save failed.");
+      return;
+    }
+
+    Alert.alert("Success", "File uploaded successfully!");
+
+  } catch (err) {
+    console.error("File upload error:", err);
+    Alert.alert("Error", "Something went wrong while uploading the file.");
+  }
+};
 
   const handleSignOut = async () => {
     Alert.alert(
